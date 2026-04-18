@@ -115,7 +115,7 @@ class PostReviewView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @disnake.ui.button(label=":white_check_mark: Approve", style=disnake.ButtonStyle.success, custom_id="post_approve")
+    @disnake.ui.button(label="Approve", style=disnake.ButtonStyle.success, custom_id="post_approve")
     async def approve(self, button: disnake.ui.Button, interaction: disnake.Interaction):
 
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
@@ -137,7 +137,7 @@ class PostReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.green()
-        embed.title = ":white_check_mark: Approved"
+        embed.title = "Approved"
         embed.add_field(
             name="Decision",
             value=f"Approved by {interaction.user.mention}",
@@ -157,7 +157,7 @@ class PostReviewView(disnake.ui.View):
 
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
-    @disnake.ui.button(label=":x: Deny", style=disnake.ButtonStyle.danger, custom_id="post_deny")
+    @disnake.ui.button(label="Deny", style=disnake.ButtonStyle.danger, custom_id="post_deny")
     async def deny(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
         if not review_data:
@@ -178,7 +178,7 @@ class PostReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.red()
-        embed.title = ":x: Denied"
+        embed.title = "Denied"
         embed.add_field(
             name="Decision",
             value=f"Denied by {interaction.user.mention}",
@@ -189,9 +189,9 @@ class PostReviewView(disnake.ui.View):
 
         user = interaction.client.get_user(user_id)
         if user:
-            await user.send(":x: You did not pass POST P1.")
+            await user.send("You did not pass POST P1.")
 
-        await interaction.response.send_message(":x: Exam Denied.", ephemeral=True, delete_after=10)
+        await interaction.response.send_message("Exam Denied.", ephemeral=True, delete_after=10)
 
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
@@ -199,7 +199,7 @@ class SceneReviewView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @disnake.ui.button(label=":white_check_mark: Approve", style=disnake.ButtonStyle.success, custom_id="scene_approve")
+    @disnake.ui.button(label="Approve", style=disnake.ButtonStyle.success, custom_id="scene_approve")
     async def approve(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
         if not review_data:
@@ -219,7 +219,7 @@ class SceneReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.green()
-        embed.title = ":white_check_mark: Approved"
+        embed.title = "Approved"
         embed.add_field(
             name="Decision",
             value=f"Approved by {interaction.user.mention}",
@@ -240,7 +240,7 @@ class SceneReviewView(disnake.ui.View):
 
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
-    @disnake.ui.button(label=":x: Deny", style=disnake.ButtonStyle.danger, custom_id="scene_deny")
+    @disnake.ui.button(label="Deny", style=disnake.ButtonStyle.danger, custom_id="scene_deny")
     async def deny(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
         if not review_data:
@@ -260,7 +260,7 @@ class SceneReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.red()
-        embed.title = ":x: Denied"
+        embed.title = "Denied"
         embed.add_field(
             name="Decision",
             value=f"Denied by {interaction.user.mention}",
@@ -271,9 +271,9 @@ class SceneReviewView(disnake.ui.View):
 
         user = interaction.client.get_user(user_id)
         if user:
-            await user.send(":x: You did not pass Scene Command P1.")
+            await user.send("You did not pass Scene Command P1.")
 
-        await interaction.response.send_message(":x: Exam Denied.", ephemeral=True, delete_after=10)
+        await interaction.response.send_message("Exam Denied.", ephemeral=True, delete_after=10)
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
 
@@ -281,7 +281,7 @@ class AviationReviewView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @disnake.ui.button(label=":white_check_mark: Approve", style=disnake.ButtonStyle.success, custom_id="aviation_approve")
+    @disnake.ui.button(label="Approve", style=disnake.ButtonStyle.success, custom_id="aviation_approve")
     async def approve(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
         if not review_data:
@@ -301,7 +301,7 @@ class AviationReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.green()
-        embed.title = ":white_check_mark: Approved"
+        embed.title = "Approved"
         embed.add_field(
             name="Decision",
             value=f"Approved by {interaction.user.mention}",
@@ -322,7 +322,7 @@ class AviationReviewView(disnake.ui.View):
 
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
-    @disnake.ui.button(label=":x: Deny", style=disnake.ButtonStyle.danger, custom_id="aviation_deny")
+    @disnake.ui.button(label="Deny", style=disnake.ButtonStyle.danger, custom_id="aviation_deny")
     async def deny(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         review_data = await db_helpers.get_pending_review(bot.pool, interaction.message.id)
         if not review_data:
@@ -342,7 +342,7 @@ class AviationReviewView(disnake.ui.View):
 
         embed = interaction.message.embeds[0]
         embed.color = disnake.Color.red()
-        embed.title = ":x: Denied"
+        embed.title = "Denied"
         embed.add_field(
             name="Decision",
             value=f"Denied by {interaction.user.mention}",
@@ -353,9 +353,9 @@ class AviationReviewView(disnake.ui.View):
 
         user = interaction.client.get_user(user_id)
         if user:
-            await user.send(":x: You did not pass Aviation P1.")
+            await user.send("You did not pass Aviation P1.")
 
-        await interaction.response.send_message(":x: Exam Denied.", ephemeral=True, delete_after=10)
+        await interaction.response.send_message("Exam Denied.", ephemeral=True, delete_after=10)
         await db_helpers.delete_pending_review(bot.pool, interaction.message.id)
 
 class CertReportView(disnake.ui.View):
@@ -396,7 +396,7 @@ async def instructor_report(inter: disnake.ApplicationCommandInteraction):
 
     if not is_role(rma_employee, inter.user):
         return await inter.edit_original_response(
-            ":no_entry: You have insufficient permissions to use this command."
+            "You have insufficient permissions to use this command."
         )
 
     tracking = get_instructor_stats()
@@ -446,7 +446,7 @@ async def my_reviews(inter: disnake.ApplicationCommandInteraction):
 
     if not is_role(rma_employee, inter.user):
         return await inter.edit_original_response(
-            ":no_entry: You have insufficient permissions to use this command."
+            "You have insufficient permissions to use this command."
         )
     stats = get_instructor_stats(inter.user.id)
     if not stats:
@@ -475,7 +475,7 @@ async def reset_tracking(inter: disnake.ApplicationCommandInteraction):
 
     if not is_role(dl_role, inter.user):
         return await inter.edit_original_response(
-            ":no_entry: You have insufficient permissions to use this command."
+            "You have insufficient permissions to use this command."
         )
 
     await inter.response.defer(ephemeral=True)
@@ -533,7 +533,7 @@ class ConfirmResetView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
 
-    @disnake.ui.button(label=":white_check_mark: Confirm Reset", style=disnake.ButtonStyle.danger)
+    @disnake.ui.button(label="Confirm Reset", style=disnake.ButtonStyle.danger)
     async def confirm(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         reset_instructor_tracking()
 
@@ -541,17 +541,17 @@ class ConfirmResetView(disnake.ui.View):
             item.disabled = True
 
         await interaction.response.edit_message(
-            content=":white_check_mark: Instructor tracking data has been reset.",
+            content="Instructor tracking data has been reset.",
             view=self
         )
 
-    @disnake.ui.button(label=":x: Cancel", style=disnake.ButtonStyle.secondary)
+    @disnake.ui.button(label="Cancel", style=disnake.ButtonStyle.secondary)
     async def cancel(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         for item in self.children:
             item.disabled = True
 
         await interaction.response.edit_message(
-            content=":x: Reset cancelled.",
+            content="Reset cancelled.",
             view=self
         )
 
@@ -562,7 +562,7 @@ async def cert_report(inter: disnake.ApplicationCommandInteraction):
 
     if not is_role(rma_employee, inter.user):
         return await inter.edit_original_response(
-            ":no_entry:  You have insufficient permissions to use this command."
+            "You have insufficient permissions to use this command."
         )
 
     sheet_data = read_sheet("Certification List", car_db_sheet)
@@ -739,7 +739,7 @@ async def poll_sheet_scene_p1():
         data = await db_helpers.scene_insert(bot.pool)
         if data:
             for db_hash in data:
-                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "scenep1exams")
+                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "scenep1exam")
 
                 user = rows_by_hash[0]["robloxusername"]
                 user_score = rows_by_hash[0]['score']
@@ -777,7 +777,7 @@ async def poll_sheet_scene_p1():
                     if member:
                         embed.add_field(name="User", value=member.mention, inline=True)
                     else:
-                        embed.add_field(name="User", value=f":warning: No Discord ID found for {user} - Manual review required",
+                        embed.add_field(name="User", value=f"No Discord ID found for {user} - Manual review required",
                                         inline=True)
 
                     embed.add_field(name="Score", value=user_score, inline=True)
@@ -814,7 +814,6 @@ async def poll_sheet_scene_p1():
     except Exception as e:
         await monitor.report_error(e, context=f"poll_sheet_scene_p1")
 
-
 @tasks.loop(seconds=poll_time)
 async def poll_sheet_aviation():
     guild = bot.get_guild(guild_id)
@@ -826,7 +825,7 @@ async def poll_sheet_aviation():
         data = await db_helpers.aviation_insert(bot.pool)
         if data:
             for db_hash in data:
-                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "scenep1exams")
+                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "aviationp1exam")
 
                 user = rows_by_hash[0]["robloxusername"]
                 user_score = rows_by_hash[0]['score']
@@ -836,9 +835,9 @@ async def poll_sheet_aviation():
                 final_score = int(user_score.split("/")[0].strip())
 
                 if disc_id:
-                    member = await get_cadet(disc_id, guild, user, "scene")
+                    member = await get_cadet(disc_id, guild, user, "aviation")
                 else:
-                    await monitor.report_warn(f"No sheet_disc_id for {user}", "poll_sheet_scene_p1")
+                    await monitor.report_warn(f"No sheet_disc_id for {user}", "poll_sheet_aviation")
                     member = None
 
                 if final_score >= 16:
@@ -865,7 +864,7 @@ async def poll_sheet_aviation():
                     if member:
                         embed.add_field(name="User", value=member.mention, inline=True)
                     else:
-                        embed.add_field(name="User", value=f":warning: No Discord ID found for {user} - Manual review required",
+                        embed.add_field(name="User", value=f"No Discord ID found for {user} - Manual review required",
                                         inline=True)
 
                     embed.add_field(name="Score", value=user_score, inline=True)
@@ -927,6 +926,10 @@ async def remove(interaction: disnake.ApplicationCommandInteraction, guild_id):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
+    if not hasattr(bot, 'pool') or bot.pool is None:
+        bot.pool = await db_helpers.create_pool()
+        print("Database pool created")
 
     bot.add_view(PostReviewView())
     bot.add_view(SceneReviewView())
@@ -1006,10 +1009,10 @@ async def on_slash_command_error(inter: disnake.ApplicationCommandInteraction, e
     else:
         await monitor.report_error(error, context=f"/{inter.application_command.name}")
 
-
-async def run():
-    bot.pool = await db_helpers.create_pool()
-    bot.run(BOT_TOKEN)
+#
+# async def run():
+#     bot.pool = await db_helpers.create_pool()
+#     bot.run(BOT_TOKEN)
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    bot.run(BOT_TOKEN)
