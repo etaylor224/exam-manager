@@ -72,8 +72,9 @@ async def get_pending_review(pool, msg_id):
     select * from examspending
     where msg_id = $1
     """
+
     try:
-        record = await con.fetch(query, msg_id)
+        record = await con.fetch(query, str(msg_id))
     except Exception as e:
         print(e)
     finally:
@@ -87,14 +88,14 @@ async def delete_pending_review(pool, msg_id):
     delete from examspending
     where msg_id = $1
     """
+    msg_id_str = str(msg_id)
+
     try:
-        await con.execute(query, msg_id)
+        await con.execute(query, msg_id_str)
     except Exception as e:
         print(e)
     finally:
         await pool.reease(con)
-
-
 
 async def exam_table_insert(pool: asyncpg.Pool, table, data, row_hash):
     con = await pool.acquire(timeout=30)
@@ -143,6 +144,7 @@ async def exampending_insert(pool: asyncpg.Pool,
            msg_id)
         VALUES ($1,$2,$3,$4,$5,$6)
     """
+    msg_id_str = str(msg_id)
 
     try:
         await con.execute(query,
@@ -151,7 +153,7 @@ async def exampending_insert(pool: asyncpg.Pool,
                           score,
                           longform,
                           stats,
-                          msg_id)
+                          msg_id_str)
 
     except Exception as e:
         print(e)
@@ -164,8 +166,10 @@ async def delete_pending_exam(pool : asyncpg.Pool, msg_id):
     DELETE from examspending 
     WHERE msg_id = $1
     """
+    msg_id_str = str(msg_id)
+
     try:
-        await con.execute(query, msg_id)
+        await con.execute(query, msg_id_str)
     except Exception as e:
         print(e)
     finally:
@@ -177,8 +181,11 @@ async def get_pending_exam(pool: asyncpg.Pool, msg_id):
     SELECT * FROM examspending
     WHERE msg_id = $1    
     """
+
+    msg_id_str = str(msg_id)
+
     try:
-       data = await con.fetch(query, msg_id)
+       data = await con.fetch(query, msg_id_str)
 
     except Exception as e:
         print(e)
@@ -285,7 +292,7 @@ async def aviation_insert(pool):
         long_form = records.get(
             'Why are you interested in obtaining a Helicopter and/or Plane Pilot certification? (grammar required)')
         sheet_disc_id = records.get("What is your Discord User ID?")
-        stats_link = records.get("Please upload an image of your game statistics")
+        stats_link = records.get("Please upload an image of your statistics")
 
         if not stats_link:
             stats_link = ""
@@ -310,12 +317,12 @@ async def run():
     start_time = time.time()
 
     pool = await create_pool()
-    await post_insert(pool)
-    await scene_insert(pool)
-    await aviation_insert(pool)
+    #await post_insert(pool)
+    #await scene_insert(pool)
+    #await aviation_insert(pool)
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
     #await exampending_insert(pool, mock_data)
     #await get_pending_exam(pool, mock_data[5])
-asyncio.run(run())
+#asyncio.run(run())
