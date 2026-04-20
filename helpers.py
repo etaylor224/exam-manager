@@ -8,7 +8,6 @@ from datetime import datetime
 import aiohttp
 from conf import *
 
-
 def is_role(roles, member: disnake.Member):
     """
     Performs check to determine if a user has a given role.
@@ -63,7 +62,6 @@ def load_instructor_tracking():
             return {}
     return {}
 
-
 def increment_instructor_count(instructor_id: int, instructor_name: str, exam_type: str):
     """Increment the approval count for an instructor"""
     tracking = load_instructor_tracking()
@@ -89,7 +87,6 @@ def increment_instructor_count(instructor_id: int, instructor_name: str, exam_ty
 
     return tracking[instructor_key]["total"]
 
-
 def reset_instructor_tracking():
     """Reset all instructor tracking data"""
     with open(INSTRUCTOR_TRACKING_FILE, "w") as f:
@@ -104,115 +101,19 @@ def get_instructor_stats(instructor_id: int = None):
 
     return tracking
 
-# --- State Tracking ---
-def load_state(sheet_state):
-    if os.path.exists(sheet_state):
-        try:
-            with open(sheet_state, "r") as f:
-                content = f.read().strip()
-                if not content:
-                    return {"last_timestamp": None}
-                data = json.loads(content)
-                # Handle old format (migrate from last_row to last_timestamp)
-                if "last_row" in data and "last_timestamp" not in data:
-                    return {"last_timestamp": None}
-                return data
-        except json.JSONDecodeError:
-            print(f"Error reading sheet: {sheet_state}")
-            return {"last_timestamp": None}
-    return {"last_timestamp": None}
-
-def save_state(sheet_state, state):
-    with open(sheet_state, "w") as f:
-        json.dump(state, f)
-
-def get_new_rows(sheet, sheet_data):
-    state = load_state(sheet)
-    last_row = state.get("last_row", 1)
-    new_rows = sheet_data[last_row:]
-    return new_rows, len(sheet_data)
-
 def parse_google_timestamp(timestamp_str):
-    """
-    Parse Google Sheets timestamp string to datetime object
 
-    Handles formats like:
-    - "3/18/2026 15:13:00"
-    - "11/25/2025 10:30:45"
-    """
     try:
-        # Try MM/DD/YYYY HH:MM:SS format first (Google Sheets default)
         return datetime.strptime(timestamp_str, "%m/%d/%Y %H:%M:%S")
     except ValueError:
         try:
-            # Try M/D/YYYY HH:MM:SS format (no leading zeros)
             return datetime.strptime(timestamp_str, "%-m/%-d/%Y %H:%M:%S")
         except ValueError:
             try:
-                # Try with just date
                 return datetime.strptime(timestamp_str, "%m/%d/%Y")
             except ValueError:
                 print(f"Warning: Could not parse timestamp: {timestamp_str}")
                 return None
-
-def get_new_rows_by_timestamp(sheet_state, sheet_data, timestamp_column="Timestamp"):
-    """
-    Get new rows based on timestamp instead of row number
-
-    Args:
-        sheet_state: Path to state file
-        sheet_data: Full sheet data including headers
-        timestamp_column: Name of the timestamp column (default: "Timestamp")
-
-    Returns:
-        tuple: (new_rows, latest_timestamp)
-    """
-    if not sheet_data or len(sheet_data) < 2:
-        return [], None
-
-    state = load_state(sheet_state)
-    last_timestamp = state.get("last_timestamp")
-
-    headers = sheet_data[0]
-
-    # Find timestamp column index
-    try:
-        timestamp_idx = headers.index(timestamp_column)
-    except ValueError:
-        print(f"Warning: '{timestamp_column}' column not found in headers")
-        # Fallback to first column
-        timestamp_idx = 0
-
-    new_rows = []
-    latest_timestamp = last_timestamp
-    timestamp_dt = parse_google_timestamp(latest_timestamp) if latest_timestamp else None
-
-    for row in sheet_data[1:]:  # Skip header row
-        if len(row) <= timestamp_idx:
-            continue
-
-        try:
-            row_timestamp = row[timestamp_idx]
-            row_timestamp_dt = parse_google_timestamp(row_timestamp)
-
-            if last_timestamp is None:
-                new_rows.append(row)
-                if timestamp_dt is None or row_timestamp_dt > timestamp_dt:
-                    timestamp_dt = row_timestamp_dt
-                    latest_timestamp = row_timestamp
-                continue
-
-            elif row_timestamp_dt > timestamp_dt:
-                new_rows.append(row)
-                if row_timestamp_dt > (timestamp_dt or datetime.min):
-                    timestamp_dt = row_timestamp_dt
-                    latest_timestamp = row_timestamp
-
-        except (IndexError, TypeError) as e:
-            print(f"Error processing row timestamp: {e}")
-            continue
-
-    return new_rows, latest_timestamp
 
 def read_sheet(tab_name, sheet_id):
     try:
