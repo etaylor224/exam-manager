@@ -1,36 +1,17 @@
 import hashlib
 import asyncpg
 import asyncio
-from conf import db, db_user, db_pass, server, post_sheet_name, post_sheet_id, scene_sheet_name, scene_sheet_id, aviation_sheet_name, aviation_sheet_id
+from conf import *
 import helpers
 
 '''
-DATA FLOW
+left todo
 
-READ google sheet -> done
-check for new exams -> done
-new exam found -> insert into database -> done
-take new exam and send message to discord ->
-push that information up to pending exams -> 
-
-if exam passes -> mark it, role user, find all entries for user ID delete from DB except the passing one
+Finalize data pulls for users and updating values
+add helpers for instructor tracking
+determine if discord id is needed for final exams
 '''
 
-
-
-
-
-
-mock_data = ("POST P1", "495812537296617473", "55/64", "This is a test and a bunch of mock data so it dont matter", "https://drive.google.com/open?id=1t_AHvOuYnWw-5Ix3vzim8GMZkb3Nk-tl",
-             "1493837468242284554")
-
-mock_db_data = [("4/15/2026 13:39:40",
-                "54 / 64",
-                "Issatovic",
-                "I want to obtain the POST certification in order to get Scene Command, which could greatly help me in myy IRS RP and allow me to assist people. I could also consider going into PIT or FWS. Then I would like to gain more skills and authority because if I join PIT, people will understand that I am not bad at what I do.",
-                "https://drive.google.com/open?id=1uF6tl4XOJM5oTnX15DGj7ElSpBQGAkVP",
-                "477e3bf477659718067671c810440cde32bef4521eac74f1bbbe906352859a47",
-                "1146082090971045909")]
 
 def hash_compute(data):
 
@@ -96,6 +77,27 @@ async def delete_pending_review(pool, msg_id):
         print(e)
     finally:
         await pool.reease(con)
+
+async def final_exam_table_insert(pool: asyncpg.Pool, table, data, row_hash):
+    con = await pool.acquire(timeout=30)
+    query = f"""
+    insert into {table}(
+    timestamp,
+    score,
+    robloxusername,
+    row_hash)
+    VALUES ($1, $2, $3, $4)
+    """
+    try:
+        await con.execute(query,
+                          data[0],
+                          data[1],
+                          data[2],
+                          row_hash)
+    except Exception as e:
+        print(e)
+    finally:
+        await pool.release(con)
 
 async def exam_table_insert(pool: asyncpg.Pool, table, data, row_hash):
     con = await pool.acquire(timeout=30)
@@ -245,6 +247,33 @@ async def post_insert(pool):
     print(f"Inserted {num_rows_inserted} rows in POST Table")
     return hashes_to_send
 
+async def post_final_insert(pool):
+    sheet = helpers.read_sheet(post_final_sheet_name, post_final_sheet_id)
+    headers = sheet[0]
+    hashes_to_send = list()
+    num_rows_inserted = 0
+
+    for row in sheet[1:]:
+        records = dict(zip(headers, row))
+        user = records.get("What is your ROBLOX username?")
+        timestamp = records.get("Timestamp")
+        user_score = records.get("Score")
+        #sheet_disc_id = records.get("What is your Discord User ID?")
+
+        row_data = (timestamp, user_score, user)
+        row_hash = hash_compute(row_data)
+
+        diff = await diff_check(pool, row_hash, "postp4exams")
+        if diff:
+            continue
+        else:
+            hashes_to_send.append(row_hash)
+            await final_exam_table_insert(pool=pool,table="postp4exams", data=row_data, row_hash=row_hash)
+            num_rows_inserted += 1
+
+    print(f"Inserted {num_rows_inserted} rows in POST Final Table")
+    return hashes_to_send
+
 async def scene_insert(pool):
     sheet = helpers.read_sheet(scene_sheet_name, scene_sheet_id)
     headers = sheet[0]
@@ -259,7 +288,7 @@ async def scene_insert(pool):
         long_form = records.get(
             'Why are you interested in obtaining a Scene Command certification? (grammar required)')
         sheet_disc_id = records.get("What is your Discord User ID?")
-        stats_link = records.get("Please upload an image of your game statistics")
+        stats_link = records.get("Please upload an image of your statistics")
 
         if not stats_link:
             stats_link = ""
@@ -276,6 +305,33 @@ async def scene_insert(pool):
             num_rows_inserted += 1
 
     print(f"Inserted {num_rows_inserted} rows in Scene Table")
+    return hashes_to_send
+
+async def scene_final_insert(pool):
+    sheet = helpers.read_sheet(scene_final_sheet_name, scene_final_sheet_id)
+    headers = sheet[0]
+    hashes_to_send = list()
+    num_rows_inserted = 0
+
+    for row in sheet[1:]:
+        records = dict(zip(headers, row))
+        user = records.get("What is your ROBLOX username?")
+        timestamp = records.get("Timestamp")
+        user_score = records.get("Score")
+        #sheet_disc_id = records.get("What is your Discord User ID?")
+
+        row_data = (timestamp, user_score, user)
+        row_hash = hash_compute(row_data)
+
+        diff = await diff_check(pool, row_hash, "scenefinalexam")
+        if diff:
+            continue
+        else:
+            hashes_to_send.append(row_hash)
+            await final_exam_table_insert(pool=pool,table="scenefinalexam", data=row_data, row_hash=row_hash)
+            num_rows_inserted += 1
+
+    print(f"Inserted {num_rows_inserted} rows in Scene Final Table")
     return hashes_to_send
 
 async def aviation_insert(pool):
@@ -310,19 +366,3 @@ async def aviation_insert(pool):
 
     print(f"Inserted {num_rows_inserted} rows in Aviation Table")
     return hashes_to_send
-
-async def run():
-
-    import time
-    start_time = time.time()
-
-    pool = await create_pool()
-    #await post_insert(pool)
-    #await scene_insert(pool)
-    #await aviation_insert(pool)
-
-    print("--- %s seconds ---" % (time.time() - start_time))
-
-    #await exampending_insert(pool, mock_data)
-    #await get_pending_exam(pool, mock_data[5])
-#asyncio.run(run())
