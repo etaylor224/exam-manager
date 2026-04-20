@@ -2,6 +2,7 @@ import asyncio
 import disnake
 from disnake.ext import tasks, commands
 from disnake.ext.commands import is_owner, NotOwner
+from datetime import timedelta
 import db_helpers
 from helpers import *
 from monitor import UniversalMonitor
@@ -10,14 +11,12 @@ import os.path
 from conf import *
 import traceback
 
-
 intents = disnake.Intents.default()
 intents.members = True
 intents.guilds = True
 intents.message_content = True
 bot = commands.InteractionBot(intents=intents, test_guilds=approved_guilds)
 monitor = UniversalMonitor(bot, bot_name, webhook_url)
-
 
 async def get_roblox_id(user):
     try:
@@ -76,7 +75,6 @@ async def get_member_id(user, search_guild_id):
         await monitor.report_warn(f"Error fetching Discord ID for {user}: {e}", "get_member_id")
         return None
 
-
 def instructor_tracking(inter: disnake.Interaction):
     with open("instructor_tracking.json", "r") as f:
         instruct = json.load(f)
@@ -110,6 +108,23 @@ async def get_cadet(sheet_id, guild, user, sheet ):
                 f"get_cadet_{sheet}"
             )
             return None
+
+async def get_cadet_no_id(guild, user, sheet):
+
+    temp_id = await get_member_id(user, guild.id)
+    if temp_id:
+        try:
+            return await guild.fetch_member(temp_id)
+        except (disnake.NotFound, disnake.HTTPException) as e:
+            await monitor.report_warn(f"Cannot fetch member {user}: {e}",
+                                      f"get_cadet_{sheet}")
+            return None
+    else:
+        await monitor.report_warn(
+            f"No Discord ID found for {user}",
+            f"get_cadet_{sheet}"
+        )
+        return None
 
 class PostReviewView(disnake.ui.View):
     def __init__(self):
@@ -528,7 +543,6 @@ async def examcheck(inter: disnake.ApplicationCommandInteraction,
 
             await inter.edit_original_response(embed=embed)
 
-
 class ConfirmResetView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
@@ -726,8 +740,94 @@ async def poll_sheet_post_p1():
                         await dm_logs.send(
                             f"User {member.mention} did not pass POST P1 (DM failed).\nUser had a score of {user_score}")
 
+        else:
+            now = datetime.now()
+            next_run = timedelta(minutes=10)
+            run_time = (now + next_run).strftime("%I:%M:%S %p")
+            print(f"Scene Command P1 Runs again on {run_time}")
+            return
+
     except Exception as e:
         await monitor.report_error(e, context=f"poll_sheet_post_p1")
+
+@tasks.loop(seconds=poll_time)
+async def poll_post_final():
+    dm_logs = bot.get_channel(1483829387202658526)
+    guild = bot.get_guild(guild_id)
+
+    try:
+        data = await db_helpers.post_final_insert(bot.pool)
+        if data:
+            for db_hash in data:
+                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "postp4exams")
+                user = rows_by_hash[0]["robloxusername"]
+                user_score = rows_by_hash[0]['score']
+                final_score = int(user_score.split("/")[0].strip())
+                member = await get_cadet_no_id(guild, user, "postp4-Finals")
+
+                if final_score >= 22:
+                    if member:
+                        try:
+                            if member.get_role(car_bl) or member.get_role(post_bl):
+                                try:
+                                    await member.send(
+                                        "Your exam cannot be graded until your Scene Blacklist is removed. See support for details.")
+                                except disnake.Forbidden:
+                                    await monitor.report_warn(f"Cannot DM blacklisted user {member.id}",
+                                                              "poll_post_final")
+                                continue
+                        except Exception as e:
+                            await monitor.report_error(e, context="Scene BL Check")
+                            continue
+
+                        exam_results = bot.get_channel(exam_results_channel)
+                        try:
+                            post_role = guild.get_role(post_role_id)
+                            p3_role = guild.get_role(post_p3_role_id)
+                            await member.add_roles(post_role)
+                            await member.remove_roles(p3_role)
+                            await exam_results.send(f"Congratulations {member.mention} you have passed POST Phase 4!")
+
+                            db_access_role = guild.get_role(1316468909595033741)
+                            database_request_msg = f"""
+                            {db_access_role.mention}
+                            Username: {member.mention}
+                            Certifications to add: POST Certification
+                            Notes: Auto-graded, POST Passed with {final_score} / 30
+                            """
+                            database_request_channel = guild.get_channel(database_request_id)
+                            await database_request_channel.send(database_request_msg)
+
+                        except Exception as e:
+                            await monitor.report_error(e, context="Post final role updates")
+
+                    else:
+                        embed = disnake.Embed(
+                            color= disnake.Color.yellow(),
+                            title=f"POST Final Exam Unable to find {user}",
+                            description=f"Unable to find user {user}, manual role update and database request needed. User had a score of {user_score}"
+                        )
+                        final_exams_channel = guild.get_channel(final_exams_channel_id)
+                        await final_exams_channel.send(embed=embed)
+
+                elif final_score < 22:
+                    if not member:
+                        await monitor.report_warn(f"Cannot notify {user} of failed exam - no Discord member found",
+                                                  "poll_post_final")
+                        await dm_logs.send(
+                            f"User {user} did not pass POST Final Exam.\nUser had a score of {user_score}\nUser was not notified, unable to notify user.")
+                        continue
+
+                    try:
+                        await member.send(f"You did not pass the POST Final Exam. Your score was {user_score}")
+                        await dm_logs.send(
+                            f"User {member.mention} did not pass POST Final Exam.\nUser had a score of {user_score}")
+                    except disnake.Forbidden:
+                        await dm_logs.send(
+                            f"User {member.mention} did not pass POST Final Exam (DM failed).\nUser had a score of {user_score}")
+
+    except Exception as e:
+        await monitor.report_error(e, context=f"poll_post_final")
 
 @tasks.loop(seconds=poll_time)
 async def poll_sheet_scene_p1():
@@ -815,11 +915,89 @@ async def poll_sheet_scene_p1():
         await monitor.report_error(e, context=f"poll_sheet_scene_p1")
 
 @tasks.loop(seconds=poll_time)
+async def poll_scene_final():
+    dm_logs = bot.get_channel(1483829387202658526)
+    guild = bot.get_guild(guild_id)
+
+    try:
+        data = await db_helpers.scene_final_insert(bot.pool)
+        if data:
+            for db_hash in data:
+                rows_by_hash = await db_helpers.search_for_hash(bot.pool, db_hash, "scenefinalexam")
+                user = rows_by_hash[0]["robloxusername"]
+                user_score = rows_by_hash[0]['score']
+                final_score = int(user_score.split("/")[0].strip())
+                member = await get_cadet_no_id(guild, user, "Scene-Finals")
+
+                if final_score >= 22:
+                    if member:
+                        try:
+                            if member.get_role(car_bl) or member.get_role(sc_bl):
+                                try:
+                                    await member.send(
+                                        "Your exam cannot be graded until your Scene Blacklist is removed. See support for details.")
+                                except disnake.Forbidden:
+                                    await monitor.report_warn(f"Cannot DM blacklisted user {member.id}",
+                                                              "poll_scene_final")
+                                continue
+                        except Exception as e:
+                            await monitor.report_error(e, context="Scene BL Check")
+                            continue
+
+                        exam_results = bot.get_channel(exam_results_channel)
+                        try:
+                            scene_role = guild.get_role(scene_role_id)
+                            scene_p2_role = guild.get_role(scene_p2_role_id)
+                            await member.add_roles(scene_role)
+                            await member.remove_roles(scene_p2_role)
+                            await exam_results.send(f"Congratulations {member.mention} you have passed the Scene Command Final Exam!")
+
+                            db_access_role = guild.get_role(1316468909595033741)
+                            database_request_msg = f"""
+                            {db_access_role.mention}
+                            Username: {member.mention} - {user}
+                            Certifications to add: Scene Command Certification
+                            Notes: Auto-graded, Scene Command Passed with {final_score} / 27
+                            """
+                            database_request_channel = guild.get_channel(database_request_id)
+                            await database_request_channel.send(database_request_msg)
+
+                        except Exception as e:
+                            await monitor.report_error(e, context="Scene Command final role updates")
+
+                    else:
+                        embed = disnake.Embed(
+                            color= disnake.Color.yellow(),
+                            title=f"Scene Command Final Exam Unable to find {user}",
+                            description=f"Unable to find user {user}, manual role update and database request needed. User had a score of {user_score}"
+                        )
+                        final_exams_channel = guild.get_channel(final_exams_channel_id)
+                        await final_exams_channel.send(embed=embed)
+
+                elif final_score < 22:
+                    if not member:
+                        await monitor.report_warn(f"Cannot notify {user} of failed exam - no Discord member found",
+                                                  "poll_scene_final")
+                        await dm_logs.send(
+                            f"User {user} did not pass Scene Command Final Exam.\nUser had a score of {user_score}\nUser was not notified, unable to notify user.")
+                        continue
+
+                    try:
+                        await member.send(f"You did not pass the Scene Command Final Exam. Your score was {user_score}")
+                        await dm_logs.send(
+                            f"User {member.mention} did not pass Scene Command Final Exam.\nUser had a score of {user_score}")
+                    except disnake.Forbidden:
+                        await dm_logs.send(
+                            f"User {member.mention} did not pass Scene Command Final Exam (DM failed).\nUser had a score of {user_score}")
+
+    except Exception as e:
+        await monitor.report_error(e, context=f"poll_scene_final")
+
+@tasks.loop(seconds=poll_time)
 async def poll_sheet_aviation():
     guild = bot.get_guild(guild_id)
     aviation_logging = bot.get_channel(1483284745034141736)
     dm_logs = bot.get_channel(1483829387202658526)
-
 
     try:
         data = await db_helpers.aviation_insert(bot.pool)
@@ -941,6 +1119,10 @@ async def on_ready():
         poll_sheet_scene_p1.start()
     if not poll_sheet_aviation.is_running():
         poll_sheet_aviation.start()
+    if not poll_post_final.is_running():
+        poll_post_final.start()
+    if not poll_scene_final.is_running():
+        poll_scene_final.start()
 
     if os.path.exists(flag_path):
         await monitor.report_restart()
@@ -977,7 +1159,6 @@ async def on_guild_join(guild: disnake.Guild):
         await monitor.leave_report(guild, inviter)
         await guild.leave()
 
-
 @bot.event
 async def on_button_click(inter: disnake.MessageInteraction):
     """Track button clicks"""
@@ -1008,11 +1189,6 @@ async def on_slash_command_error(inter: disnake.ApplicationCommandInteraction, e
             context=f"/{inter.application_command.name}")
     else:
         await monitor.report_error(error, context=f"/{inter.application_command.name}")
-
-#
-# async def run():
-#     bot.pool = await db_helpers.create_pool()
-#     bot.run(BOT_TOKEN)
 
 if __name__ == "__main__":
     bot.run(BOT_TOKEN)
